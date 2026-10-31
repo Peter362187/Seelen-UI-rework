@@ -17,9 +17,9 @@ await Widget.self.window.setResizable(false);
 await invoke(SeelenCommand.SetAsWallpaper);
 // await Widget.self.window.setIgnoreCursorEvents(true); btw this does nothing so better not call it.
 
-// Polling instead of Widget.self.normalizeDevicePixelRatio() (onScaleChanged event): this
-// window is reparented to WorkerW via SetParent, and onScaleChanged doesn't fire reliably
-// there, so we poll devicePixelRatio instead.
+// The window is reparented to WorkerW via SetParent, where onScaleChanged doesn't fire reliably,
+// so devicePixelRatio is checked instead. A resolution media query reacts instantly when the DPR
+// changes; the slow poll is only a fallback, so the webview no longer wakes up twice a second.
 let oldDPR = globalThis.devicePixelRatio;
 async function lookupDPI() {
   if (globalThis.devicePixelRatio !== 1) {
@@ -27,9 +27,20 @@ async function lookupDPI() {
     oldDPR = oldDPR * globalThis.devicePixelRatio;
     await Widget.self.webview.setZoom(1 / oldDPR);
   }
-  setTimeout(lookupDPI, 500);
+}
+function watchDPI() {
+  const query = matchMedia(`(resolution: ${globalThis.devicePixelRatio}dppx)`);
+  query.addEventListener(
+    "change",
+    () => {
+      lookupDPI().finally(watchDPI);
+    },
+    { once: true },
+  );
 }
 await lookupDPI();
+watchDPI();
+setInterval(lookupDPI, 5000);
 
 const root = document.getElementById("root")!;
 mount(App, { target: root });
