@@ -9,8 +9,14 @@ use crate::error::Result;
 use tauri::Manager;
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
-/// Public key for minisign verification (same as updater)
-const MINISIGN_PUBLIC_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ4QjU1RUI0NEM0NzBERUIKUldUckRVZE10RjYxU0lpaERvdklYL05DVlg0Sk9EVngvaEgzZjMvU1NNemJTZXZ1K0dNVXU3ZkQK";
+/// Public key for minisign verification (same as updater). Self-built forks sign SHA256SUMS with
+/// their own key, so it can be overridden at compile time via `SLU_BUNDLE_PUBLIC_KEY`.
+const MINISIGN_PUBLIC_KEY: &str = match option_env!("SLU_BUNDLE_PUBLIC_KEY") {
+    Some(key) => key,
+    None => {
+        "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ4QjU1RUI0NEM0NzBERUIKUldUckRVZE10RjYxU0lpaERvdklYL05DVlg0Sk9EVngvaEgzZjMvU1NNemJTZXZ1K0dNVXU3ZkQK"
+    }
+};
 
 pub async fn ensure_bundle_files_integrity(app: &tauri::AppHandle) -> Result<()> {
     log::trace!("Validating bundle files integrity");
