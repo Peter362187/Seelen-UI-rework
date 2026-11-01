@@ -21,11 +21,21 @@ await invoke(SeelenCommand.SetAsWallpaper);
 // so devicePixelRatio is checked instead. A resolution media query reacts instantly when the DPR
 // changes; the slow poll is only a fallback, so the webview no longer wakes up twice a second.
 let oldDPR = globalThis.devicePixelRatio;
+// The media query and the fallback poll can fire together; without this guard both would read the
+// stale DPR before setZoom applies and multiply it into oldDPR twice.
+let correcting = false;
 async function lookupDPI() {
-  if (globalThis.devicePixelRatio !== 1) {
+  // tolerance: after setZoom the DPR can land at 0.9999999 instead of exactly 1
+  if (correcting || Math.abs(globalThis.devicePixelRatio - 1) < 0.001) {
+    return;
+  }
+  correcting = true;
+  try {
     // when zoom was set dpr changed, so in case of change this is accomulative unit
     oldDPR = oldDPR * globalThis.devicePixelRatio;
     await Widget.self.webview.setZoom(1 / oldDPR);
+  } finally {
+    correcting = false;
   }
 }
 function watchDPI() {
